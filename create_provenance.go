@@ -11,6 +11,8 @@ import (
 	"os"
 	"path/filepath"
 	"time"
+
+	rpmdb "github.com/knqyf263/go-rpmdb/pkg"
 )
 
 const (
@@ -25,6 +27,7 @@ var (
 	outputPath    = flag.String("output_path", "build.provenance", "The path to which the generated provenance should be written.")
 	githubContext = flag.String("github_context", "", "The '${github}' context value.")
 	runnerContext = flag.String("runner_context", "", "The '${runner}' context value.")
+	collectRPMs   = flag.Bool("collect_rpms", false, "Should all installed RPM packages be collected as materials.")
 )
 
 type Envelope struct {
@@ -142,6 +145,25 @@ func subjects(root string) ([]Subject, error) {
 	})
 }
 
+func addRPMsToMaterials(materials *[]Item) error {
+	var err error
+	var db *rpmdb.RpmDB
+	if db, err = rpmdb.Open("/var/lib/rpm/Packages"); err != nil {
+		return err
+	}
+	var list []*rpmdb.PackageInfo
+	list, err = db.ListPackages(); if err != nil {
+		return err
+	}
+	for _, pkg := range list {
+		*materials = append(*materials, Item{
+			URI:    "pkg:rpm/" + pkg.Vendor + "/" + pkg.Name + "@" + pkg.Version + "-" + pkg.Release,
+			Digest: nil, // TODO get digest (and check if nothing was changed?)
+		})
+	}
+	return nil
+}
+
 func parseFlags() {
 	flag.Parse()
 	if *artifactPath == "" {
@@ -217,6 +239,9 @@ func main() {
 	}
 	stmt.Predicate.Recipe.Arguments = event.Inputs
 	stmt.Predicate.Materials = append(stmt.Predicate.Materials, Item{URI: "git+" + repoURI, Digest: DigestSet{"sha1": gh.SHA}})
+	if *collectRPMs {
+		addRPMsToMaterials(&stmt.Predicate.Materials)
+	}
 	if os.Getenv("GITHUB_ACTIONS") == "true" {
 		stmt.Predicate.Builder.Id = repoURI + GitHubHostedIdSuffix
 	} else {
