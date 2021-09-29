@@ -44,7 +44,7 @@ jobs:
   generate-rpm-provenance:
     needs: build
     name: Generate build provenance with RPM info
-    runs-on: centos-8
+    runs-on: centos:8
     steps:
       # checkout only required to run local action (defined in this repo)
       - name: Checkout
