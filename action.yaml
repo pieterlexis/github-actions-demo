@@ -19,6 +19,9 @@ inputs:
     description: 'internal (do not set): the "runner" context object in json'
     required: true
     default: ${{ toJSON(runner) }}
+  collect_rpms:
+    description: 'whether to collect the set of installed RPMs as materials'
+    default: false
 runs:
   using: 'docker'
   image: 'Dockerfile'
@@ -31,3 +34,5 @@ runs:
     - '${{ inputs.github_context }}'
     - "--runner_context"
     - '${{ inputs.runner_context }}'
+    - '--collect_rpms'
+    - '${{ inputs.collect_rpms }}'
